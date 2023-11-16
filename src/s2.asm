@@ -93,13 +93,13 @@ DEFAULTSLOT 2
 .ENDME
 
 .ROMBANKMAP
-BANKSTOTAL 32
+BANKSTOTAL 33
 BANKSIZE $7FF0
 BANKS 1
 BANKSIZE $0010
 BANKS 1
 BANKSIZE $4000
-BANKS 30
+BANKS 31
 .ENDRO
 
 .EMPTYFILL $FF
@@ -4510,6 +4510,15 @@ LABEL_305F:
     ld    (ix+$02), PlayerState_Crouch
     ret    
 
+Player_SetState_SpinDash:
+    ld    hl, $0000
+    ld    ($D516), hl
+    ld    (ix+$02), PlayerState_SpinDash
+    set   1, (ix+$03)         ;set flag to destroy enemies on collision
+    ld    a, SFX_Roll         ;play "roll" sound
+    ld    (Sound_MusicTrigger1), a
+    ret    
+
 Player_SetState_Running:
 LABEL_3072:
     res   0, (ix+$03)
@@ -4552,6 +4561,17 @@ LABEL_30A5:
     ld    (Sound_MusicTrigger1), a
     ret    
 
+Player_SetState_Roll_SpinDashRelease:
+    ld    (ix+$02), PlayerState_Rolling
+    ld    hl, $0600
+    ld    (Player_MaxVelX), hl
+    call  LABEL_48C4
+    res   0, (ix+$03)
+    set   1, (ix+$03)         ;set flag to destroy enemies on collision
+    ld    a, SFX_LeaveTube
+    ld    (Sound_MusicTrigger1), a
+    ret    
+
 Player_SetState_JumpFromRamp
 LABEL_30C7:
     ld    (ix+$02), PlayerState_JumpFromRamp
@@ -4586,18 +4606,6 @@ LABEL_30FD:
     set   1, (ix+$03)     ;flag movement on X-axis
     res   1, (ix+$22)     ;trigger the movement
     ret    
-
-LABEL_3119:                         ; \
-    ld    (ix+$02), $09             ; |
-    ld    (ix+$16), l               ; |
-    ld    (ix+$17), h               ; |
-    ld    (Player_MaxVelX), hl      ; |
-    res   0, (ix+$03)               ; |     Identical to subroutine below
-    set   1, (ix+$03)               ; |
-    res   1, (ix+$22)               ; |
-    ld    a, $9c                    ; |
-    ld    (Sound_MusicTrigger1), a  ; |
-    ret                             ; /
 
 Player_SetState_HorizontalSpring:
 LABEL_3138:
@@ -4774,6 +4782,25 @@ LABEL_3267:
     jp    nz, Player_SetState_LookUp
     bit   1, (hl)             ;check for down button
     jp    z, Player_SetState_Standing
+    ret    
+
+;***********************************************************
+;* Handle a button press when the player is Spin Dashing.  *
+;***********************************************************
+Player_HandleSpinDash:
+    ld    a, $80                  ;reset the camera offset 
+    ld    ($D289), a
+    call  LABEL_3A62
+    ld    hl, Engine_InputFlags
+    bit   1, (hl)             ;check for down button
+    ret   nz
+    ld    hl, $0600           ;facing right
+    bit   OBJ_F4_FACING_LEFT, (ix + Object.Flags04) ; check which way we're facing
+    jr    z, +
+    ld    hl, $FA00           ;facing left
++:  ld    (ix+$16), l
+    ld    (ix+$17), h
+    jp    Player_SetState_Roll_SpinDashRelease
     ret    
 
 ;******************************************************
@@ -6204,6 +6231,10 @@ LABEL_3A62:
     and   $30             ;check for either button 1 or button2
     ret   z
 
+    ; check here if player is crouched
+    ld    a, ($D501)                
+    cp    PlayerState_Crouch
+    jp    z, Player_SetState_SpinDash
 
 Player_SetState_Jumping:        ;$3A8C
     ld    a, ($D501)                ;check to see if player is sliding
@@ -6494,11 +6525,11 @@ Player_CalcAccel:       ; $3BDD
     ; check to see if the player is at the far-left of the level
     ld    bc, 16
     cp    16
-    jp    c, Engine_LimitScreenPos_Left
+    jp    c, Engine_LimitScreenPos
     ; check to see if the player is at the far-right of the level.
     ld    bc, $00F7
     cp    $F8
-    jp    nc, Engine_LimitScreenPos_Right
+    jp    nc, Engine_LimitScreenPos
 
 
     ; don't change acceleration value if player is hurt
@@ -6620,64 +6651,10 @@ Player_CalcAccel_UnderWater:        ; $3C5F
 +:  ; check the input flags to see if the left button is pressed.
     ld    bc, $0000
     bit   BTN_LEFT_BIT, a
-    jr    nz, +
+    jr    nz, Player_CalcAccel_GetValue
     ; right button pressed
     ld    bc, $0002
-
-+:  ; FIXME: massive code duplication here. This entire section
-    ;        is exactly the same as Player_CalcAccel_GetValue.
-    ;        replace all jumps to this address with jumps to
-    ;        Player_CalcAccel_GetValue.
-    ; adjust the pointer and fetch a word from the array
-    add   hl, bc
-    add   hl, de
-    ld    e, (hl)
-    inc   hl
-    ld    d, (hl)
-
-    ; fetch the player's x velocity
-    ld    hl, (Player.VelX)
-    
-    ; make sure that velocity value is positive
-    bit   7, h
-    jr    z, +
-    dec   hl
-    ld    a, h
-    cpl    
-    ld    h, a
-    ld    a, l
-    cpl    
-    ld    l, a
-
-+:  ; if velocity >= $80 double the delta value
-    ld    bc, $0080
-    add   hl, bc
-    ld    a, h
-    or    a
-    jr    nz, +
-    ex    de, hl
-    add   hl, hl
-    ex    de, hl
-
-+:  ; set the delta value
-    ld    (Player_DeltaVX), de
-    
-    ; fetch the metatile's speed modifier index
-    ld    a, ($D363)
-    
-    ; use the value as an index into the array of gradient
-    ; delta-v values.
-    ld    l, a
-    ld    h, $00
-    ld    de, DATA_4016
-    add   hl, de
-    
-    ; fetch & store the gradient delta-v
-    ld    e, (hl)
-    inc   hl
-    ld    d, (hl)
-    ld    (Player_MetaTileDeltaVX), de
-    ret    
+    jr    Player_CalcAccel_GetValue
 
 
 Player_CalcAccel_NoBtnPress:        ; $3CB8
@@ -6707,23 +6684,15 @@ Player_CalcAccel_NoBtnPress:        ; $3CB8
     jp    Player_CalcAccel_GetValue
 
     
-;FIXME: this subroutine is a duplicate. Replace with call to Engine_LimitScreenPos_Right.
-Engine_LimitScreenPos_Left:     ;$3CD9
-    ld    hl, (Camera_X)         ;horizontal cam offset in level
-    add   hl, bc
-    ld    (Player.X), hl
-    xor   a
-    ld    (Player.SubPixelX), a
-    jr    +
 
-Engine_LimitScreenPos_Right:    ;$3CE6
+Engine_LimitScreenPos:    
     ld    hl, (Camera_X)         ;horizontal cam offset
     add   hl, bc
     ld    (Player.X), hl
     xor   a
     ld    (Player.SubPixelX), a
 
-+:  ;subtract velocity from hpos
+    ;subtract velocity from hpos
     ld    hl, (Player.SubPixelX)
     ld    de, (Player.VelX)
     ld    c, 0
@@ -12376,7 +12345,7 @@ Player_CollideLeftSolidBlock:       ;$7195
     cp    $0A             ;check for horizontal spring
     ret   nz
     ld    hl, $0600
-    jp    LABEL_3119  ;seems to be identical to subroutine "Player_HitHorizontalSpring"
+    jp    Player_SetState_HorizontalSpring
 
 
 ;****************************************************

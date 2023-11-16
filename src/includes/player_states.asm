@@ -42,4 +42,6 @@
 .def    PlayerState_EndSeq_Init     $2A ; set by routine at $6F3 on starting the end sequence.
 .def	PlayerState_EndSequence		$2B
 
-.def    PlayerState_ContinueScreen  $2F 
+.def    PlayerState_ContinueScreen  $2F
+
+.def    PlayerState_SpinDash        $34 

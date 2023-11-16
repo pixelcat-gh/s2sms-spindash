@@ -139,7 +139,9 @@ Sonic_Spring		;1 frame
 .dstruct SPR87 instanceof SpriteDef DATA $04, $B480, $08 		;$61
 .dstruct SPR88 instanceof SpriteDef DATA $04, $B680, $06 		;$62
 
-
+.dstruct SpinDash1 instanceof SpriteDef DATA $04, $8A80, $06 		;$63
+.dstruct SpinDash2 instanceof SpriteDef DATA $04, $8C00, $06 		;$64
+.dstruct SpinDash3 instanceof SpriteDef DATA $04, $A280, $06 		;$65
 
 Data_PlayerSprites_Mirrored:
 .dstruct SPR89 instanceof SpriteDef DATA $10, $8000, $06 		;$63
@@ -241,3 +243,6 @@ Data_PlayerSprites_Mirrored:
 .dstruct SPR186 instanceof SpriteDef DATA $10, $B280, $08 
 .dstruct SPR187 instanceof SpriteDef DATA $10, $B480, $08 
 .dstruct SPR188 instanceof SpriteDef DATA $04, $B680, $06
+.dstruct SpinDash1M instanceof SpriteDef DATA $10, $8A80, $06 		;$61
+.dstruct SpinDash2M instanceof SpriteDef DATA $10, $8C00, $06 		;$62
+.dstruct SpinDash3M instanceof SpriteDef DATA $10, $A280, $06 		;$62
