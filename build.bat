@@ -21,7 +21,7 @@ ECHO ==========================
 IF EXIST s2.o DEL s2.o
 IF EXIST s2.sym DEL s2.sym
 
-START "C:\Program Files\blastem-win32-0.6.2\blastem.exe" s2.sms
+wla_dx_binaries_latest\MSChecksumFixer s2.sms
 
 GOTO end
 
