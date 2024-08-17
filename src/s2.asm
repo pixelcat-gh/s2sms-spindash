@@ -5332,17 +5332,21 @@ Player_HandleEndOfLevel_ExitRight:      ; $3544
     ld    hl, $0000
     ld    (Player.VelX), hl
     
-+:  ; increase the velocity by 16 until velocity == $0600
++:  ; increase the velocity by 16 until velocity == $0400
     ld    a, h
-    cp    $06
+    cp    $04
     jr    nc, +
 
     ld    de, $0010
     add   hl, de
     ld    (ix + Object.VelX), l
     ld    (ix + Object.VelX + 1), h
+    jp    Engine_UpdateObjectPosition
 
 +:  ; update the object's position
+    ld    hl, $0400
+    ld    (ix + Object.VelX), l
+    ld    (ix + Object.VelX + 1), h
     jp    Engine_UpdateObjectPosition
 
 
