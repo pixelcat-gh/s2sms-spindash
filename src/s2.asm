@@ -93,13 +93,13 @@ DEFAULTSLOT 2
 .ENDME
 
 .ROMBANKMAP
-BANKSTOTAL 33
+BANKSTOTAL 32
 BANKSIZE $7FF0
 BANKS 1
 BANKSIZE $0010
 BANKS 1
 BANKSIZE $4000
-BANKS 31
+BANKS 30
 .ENDRO
 
 .EMPTYFILL $FF
@@ -943,7 +943,7 @@ GameState_NextAct:      ; $0820
     djnz  -
     
     ; stop music
-    ld    a, Music_Null         ; FIXME: use XOR A
+    xor   a
     ld    (Sound_MusicTrigger1), a
     
     call  Engine_ClearWorkingVRAM       ;clear various blocks of RAM & prepare the SAT
@@ -1130,9 +1130,6 @@ GameState_KillPlayer:       ; $092A
     or    a
     jr    z, +
 
-    ; FIXME: remove this: it's pointless
-    ld    (LifeCounter), a
-
     ld    hl, GlobalTriggers
     res   GT_KILL_PLAYER_BIT, (hl)
     set   GT_TITLECARD_BIT, (hl)
@@ -1263,8 +1260,7 @@ _Load_Intro_Level:
     call  Engine_ClearLevelAttributes
     ld    a, Level_Intro
     ld    (CurrentLevel), a
-    ; FIXME: xor a
-    ld    a, 0
+    xor   a
     ld    (CurrentAct), a
     di
     call  Engine_LoadLevel             ;load the level
@@ -1421,8 +1417,7 @@ LABEL_FB9:
     ldir
 
     ; clear the first object
-    ; FIXME: xor a
-    ld    a, 0
+    xor   a
     ld    (Player.ObjID), a
     
     ld    a, :Bank08              ;swap in bank 8 
@@ -2812,8 +2807,6 @@ LABEL_1D7F:
 
 +:  ld    de, $D2AF
     ld    bc, $0201
-    jr    LABEL_1DAF  ;FIXME: pointless
-
 
 LABEL_1DAF:
     ld    ($D11C), hl
@@ -3415,7 +3408,7 @@ Engine_LoadLevel:        ;$21AA
     ld    ($D500), a
     ld    a, ($D2B7)
     or    a
-    jr    nz, +
+    ret   nz
     xor   a
     ld    (LevelTimer), a
     ld    (LevelTimer+1), a
@@ -3424,11 +3417,6 @@ Engine_LoadLevel:        ;$21AA
     ei
     halt
     ret
-    
-+:  ei    ;FIXME: 3 wasted opcodes
-    halt
-    ret
-
 
 Engine_ClearWorkingVRAM:       ;21E0
     ld    hl, $D300   ;clear RAM from $D300 -> $DBBF
@@ -3755,7 +3743,7 @@ LABEL_24BE_48:
     ;check for level select trigger
     ld    a, (LevelSelectTrg)
     cp    $0D
-    jr    nz, +
+    jr    z, + ;temp
     xor   a
     ld    ($D294), a
     call  LevelSelectMenu     ;run the level select
@@ -3897,7 +3885,7 @@ LABEL_2576:
     jr    nz, LABEL_2576
 
 +:  ; stop music
-    ld    a, Music_Null         ; FIXME: use XOR A
+    xor   a
     ld    (Sound_MusicTrigger1), a
     
     ; reset dynamic palette numbers
@@ -4434,17 +4422,16 @@ Engine_UpdatePlayerObjectState:     ; $2FA8
 
 
 LABEL_2FCB:
-    ;check to see if we're on the intro screen
-    ld    a, (CurrentLevel)
-    cp    Level_Intro
-    jp    z, +
-    
-    ; FIXME: reduce code duplication - move this before the compare
     push  iy
     ld    (ix + Object.ix0A), $40
     ld    (ix + Object.ix0B), $00
     ld    (ix + Object.AnimFrame), $10
-    ; -------------------------------------------------------------
+
+    ;check to see if we're on the intro screen
+    ld    a, (CurrentLevel)
+    cp    Level_Intro
+    jp    z, +
+
     ld    (ix + Object.SpriteCount), $08
 
     ; set max x-velocity
@@ -4457,11 +4444,7 @@ LABEL_2FCB:
     inc   (ix + Object.StateNext)
     ret    
 
-+:  push  iy
-    ld    (ix + Object.ix0A), $40
-    ld    (ix + Object.ix0B), $00
-    ld    (ix + Object.AnimFrame), $10
-    ld    (ix + Object.SpriteCount), $04
++:  ld    (ix + Object.SpriteCount), $04
     pop   iy
     ld    (ix + Object.StateNext), $0F
     ret    
@@ -4515,7 +4498,7 @@ Player_SetState_SpinDash:
     ld    ($D516), hl
     ld    (ix+$02), PlayerState_SpinDash
     set   1, (ix+$03)         ;set flag to destroy enemies on collision
-    ld    a, SFX_Roll         ;play "roll" sound
+    ld    a, SFX_SpinDash     ;play "spin dash" sound
     ld    (Sound_MusicTrigger1), a
     ret    
 
@@ -4788,6 +4771,8 @@ LABEL_3267:
 ;* Handle a button press when the player is Spin Dashing.  *
 ;***********************************************************
 Player_HandleSpinDash:
+    bit   OBJ_F3_IN_AIR, (ix + Object.Flags03) ;is the player in air?
+    jp    nz, Player_SetState_Roll_SpinDashRelease
     ld    a, $80                  ;reset the camera offset 
     ld    ($D289), a
     call  LABEL_3A62
@@ -5971,7 +5956,7 @@ Player_ChangeFrameDisplayTime:     ;$38EE
     xor   a
     ld    (hl), a
 
-+:  add   a, $01          ;FIXME: "inc a" is faster
++:  inc   a
 
     ; set the frame number
     ld    (ix + Object.AnimFrame), a
@@ -6235,6 +6220,9 @@ LABEL_3A62:
     ld    a, ($D501)                
     cp    PlayerState_Crouch
     jp    z, Player_SetState_SpinDash
+
+    cp    PlayerState_SpinDash
+    ret   z
 
 Player_SetState_Jumping:        ;$3A8C
     ld    a, ($D501)                ;check to see if player is sliding
@@ -6715,9 +6703,6 @@ Engine_LimitScreenPos:
     ld    (Player_DeltaVX), hl
     ld    (Player.VelX), hl
     ret    
-
-
-.ORG $3D16
 
 .IFEQ Version 2
 .db $D5, $C9
@@ -7966,21 +7951,13 @@ Engine_WaterLevel_IncAirTimer:      ; $4895
     ; create the counter object after 22 seconds
     cp    11
     jr    z, Engine_WaterLevel_SpawnCountObj
-    
-    cp    17                    ; FIXME: this CP and JR are pointless
-    jr    z, Engine_WaterLevel_DoNothing
-    ret
 
+    ret
 
 Engine_WaterLevel_SpawnCountObj:        ; $48B0
     ld    c, Object_AirCountdown      ;countdown object number
     ld    h, $00
     jp    Engine_AllocateObjectHighPriority   ;allocate a slot for the object
-
-
-Engine_WaterLevel_DoNothing:        ; $48B7 
-    ret
-
 
 Engine_WaterLevel_SpawnBubble:      ; $48B8
     ; use the R register as a "random" value
@@ -8197,21 +8174,12 @@ Engine_UpdateCameraXPos:    ;$49FA
     xor   a
     sbc   hl, de
     jr    nc, Engine_UpdateCameraXPos_Limit       ;limit camera to level width
-    bit   3, (ix+$00)
-    jr    nz, +       ;FIXME: this seems a bit pointless. This subroutine is identical.
     
     ld    a, ($D174)
     ld    b, a
     ld    a, ($D284)
     xor   b
     jp    nz, Engine_LoadMappings32_Column        ;load a column of tiles from the 32x32 mappings
-    ret
-
-+:  ld    a, ($D174)
-    ld    b, a
-    ld    a, ($D284)
-    xor   b
-    jp    nz, Engine_LoadMappings32_Column
     ret
 
 ;limit the camera position
@@ -8232,8 +8200,6 @@ Engine_UpdateCameraYPos:        ;$4A37
     xor   a
     sbc   hl, de
     jr    nc, Engine_UpdateCameraYPos_Limit       ;limit camera to level height
-    bit   1, (ix+$00)
-    jr    nz, +               ;FIXME: subroutine identical to below. required?
     ld    a, ($D176)
     and   $F8
     ld    b, a
@@ -8242,15 +8208,6 @@ Engine_UpdateCameraYPos:        ;$4A37
     xor   b
     jp    nz, Engine_LoadMappings32_Row       ;load a row of mappings from the 32x32 mappings
     ret    
-
-+:  ld    a, ($D176)
-    and   $F8
-    ld    b, a
-    ld    a, ($D286)
-    and   $F8
-    xor   b
-    jp    nz, Engine_LoadMappings32_Row
-    ret
 
 ;limit camera y position
 Engine_UpdateCameraYPos_Limit:  ;$4A75
@@ -11512,16 +11469,13 @@ Cllsn_MetaTileTriggerFuncPtrs:      ; $6C70
 .dw LABEL_6C9C
 .dw LABEL_6E30
 .dw LABEL_6C9C
-.dw LABEL_6C9D
+.dw LABEL_6CA1
 .dw LABEL_6EB1  ;$13 - SEZ pipes
 .dw LABEL_6CAD  ;$14 - diagonal spring
 .dw LABEL_6C9C
 
 LABEL_6C9C:
     ret
-
-LABEL_6C9D:
-    jp    LABEL_6CA1      ;FIXME: pointless
     
 LABEL_6CA0:
     ret    
@@ -12353,6 +12307,9 @@ Player_CollideLeftSolidBlock:       ;$7195
 ;*  the player's right edge.                        *
 ;****************************************************
 Player_CollideRightBreakableBlock:      ;$71C9
+    ld    a, ($D501)                
+    cp    PlayerState_SpinDash
+    jp    z, Player_CollideBreakableBlock_UpdateMappings
     bit   1, (ix+$03)
     jp    z, Player_CollideRightWithSolidBlock
     ld    a, ($D517)
@@ -13142,7 +13099,6 @@ Engine_GetCollisionData_HandleOverflow:     ;$75AA
     ld    (Cllsn_MetatileIndex), a
     ld    a, $00            ;store as collision value
     ld    (Cllsn_MetaTileSurfaceType), a
-    ld    a, $00            ;FIXME: pointless opcode
     ld    (Cllsn_CollisionValueY), a
     ld    (Cllsn_CollisionValueX), a        ;store vertical collision value
     jp    Engine_GetCollisionData_CleanUp
@@ -13181,8 +13137,8 @@ LABEL_75C5:
     
 DATA_75E7:
 .dw LABEL_7614        ;$00
-.dw LABEL_7613        ;$01
-.dw LABEL_7613        ;$02
+.dw DATA_75E7_DoNothing        ;$01
+.dw DATA_75E7_DoNothing        ;$02
 .dw LABEL_763E        ;$03
 .dw LABEL_763E        ;$04
 .dw LABEL_763E        ;$05
@@ -13198,15 +13154,10 @@ DATA_75E7:
 .dw LABEL_763E        ;$0F
 .dw LABEL_763E        ;$10
 .dw LABEL_763E        ;$11
-.dw LABEL_7613        ;$12
+.dw DATA_75E7_DoNothing        ;$12
 .dw LABEL_763E        ;$13
 .dw LABEL_763E        ;$14
 .dw LABEL_763E        ;$15
-
-
-LABEL_7613:
-    ; FIXME: use the RET from the subroutine below
-    ret
 
 LABEL_7614:
     ; dont change anything if the object is floating in the air
@@ -13214,6 +13165,8 @@ LABEL_7614:
     ret   nz
     
     set   OBJ_F3_BIT4, (ix + Object.Flags03)
+
+DATA_75E7_DoNothing:
     ret    
 
 
@@ -13420,12 +13373,7 @@ LevelSelect_LoadFont:       ; $76D7
     ; decompress the tiles
     ld    hl, Art_LevelSelect_Font
     xor   a
-    ; FIXME: Use tail recursion here.
-    call  LoadTiles
-
-    ret
-
-
+    jp    LoadTiles
 
 TitleCard_LoadTiles:        ;76EB
     di
@@ -13481,9 +13429,7 @@ TitleCard_LoadTiles:        ;76EB
     pop   de              ;load the mappings into VRAM
     ld    bc, $0810
     ld    hl, $3B90
-    ; FIXME: use tail recursion here.
-    call  Engine_LoadCardMappings
-    ret
+    jp    Engine_LoadCardMappings
 
 
 TitleCard_PicturePointers:
@@ -13515,9 +13461,7 @@ GameOverScreen_LoadTiles:   ;777D
     call  VDP_SetAddress
     ld    hl, GameOverScreen_Data_GameOverTiles
     xor   a
-    ; FIXME: use tail recursion here.
-    call  LoadTiles                  ;load the art
-    ret
+    jp    LoadTiles                  ;load the art
 
 ;Used by end of game sequence?
 ContinueScreen_LoadTiles:   ;7791
@@ -13528,9 +13472,7 @@ ContinueScreen_LoadTiles:   ;7791
     call  VDP_SetAddress
     ld    hl, ContinueScreen_Data_ContinueTiles
     xor   a
-    ; FIXME: use tail recursion here.
-    call  LoadTiles
-    ret
+    jp    LoadTiles
 
 ContinueScreen_LoadNumberTiles:     ;77A5
     di
@@ -13540,9 +13482,7 @@ ContinueScreen_LoadNumberTiles:     ;77A5
     call  VDP_SetAddress
     ld    hl, ContinueScreen_Data_NumberTiles
     xor   a
-    ; FIXME: use tail recursion here.
-    call  LoadTiles
-    ret
+    jp    LoadTiles
 
 ScoreCard_LoadMappings:     ;77B9
     ld    hl, $3B90
@@ -13563,9 +13503,7 @@ ScoreCard_LoadMappings:     ;77B9
     call  Engine_LoadCardMappings
     call  LABEL_1D4F
     call  LABEL_1D60
-    ; FIXME: use tail recursion here.
-    call  LABEL_1D6F
-    ret
+    jp    LABEL_1D6F
 
 
 ; =============================================================================
@@ -13600,10 +13538,8 @@ Engine_ClearVRAM:       ; $77F3
     or    c
     jr    nz, -
 
-    ; FIXME: use tail recursion here.
     ; turn the display on
-    call  VDP_SetMode2Reg_DisplayOn
-    ret
+    jp    VDP_SetMode2Reg_DisplayOn
 
 
 ; =============================================================================
@@ -13624,9 +13560,7 @@ Engine_ClearPaletteRAM:     ; $782D
     ld    de, $0000
     ;loop 32 times
     ld    bc, $0020
-    ; FIXME: use tail recursion here.
-    call  VDP_Write
-    ret
+    jp    VDP_Write
 
 
 /**************************************************************************
@@ -13758,8 +13692,6 @@ Engine_HandlePLC_NoBank:    ;$78CA
     inc   hl
     ld    d, (hl)
     ld    (PLC_Descriptor), de
-
-    jp    Engine_HandlePLC_ParseDescriptor        ;FIXME: why bother with this?
 
 ;parse a PLC descriptor and set the variables in RAM
 Engine_HandlePLC_ParseDescriptor:   ;$78EB

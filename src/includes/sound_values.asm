@@ -35,6 +35,7 @@
 .def	SFX_BreatheBubble	$A4
 .def	SFX_Splash			$A5
 .def 	SFX_ExtraLife		$A6
+.def    SFX_SpinDash        $A7
 
 .def	SFX_BombBounce		$A8
 .def	SFX_EnterMinecart	$A9

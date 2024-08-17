@@ -4,6 +4,10 @@ Art_Sonic_Gliding:
 Art_Sonic_Minecart:
 .incbin "art\sonic\art_ucmp_sonic_minecart.bin"
 
+.include "src\player_sprite_defs.asm"
 
-;seems to be empty padding
-.incbin "misc\b5_padding.bin"
+Art_Sonic_SpinDash:
+.incbin "art\sonic\art_ucmp_spin_dash.bin"
+
+Art_Sonic_SpinDash_Mirrored:
+.incbin "art\sonic\art_ucmp_spin_dash_mirrored.bin"

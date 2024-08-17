@@ -49,5 +49,5 @@ def write_binary(bin: bytearray, filename: str) -> None:
 def convert_art(file: str) -> None:
     write_binary(image_to_planar(read_tiles(file)), file)
 
-convert_art('art_ucmp_sonic')
-convert_art('art_ucmp_sonic_mirrored')
+convert_art('art_ucmp_spin_dash')
+convert_art('art_ucmp_spin_dash_mirrored')

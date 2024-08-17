@@ -309,9 +309,3 @@ Bank30:
 Bank31:
 
 .include "src/includes/bank31.asm"
-
-.BANK 32
-.ORG $0000
-Bank32:
-
-.include "src/includes/bank32.asm"
