@@ -3743,7 +3743,7 @@ LABEL_24BE_48:
     ;check for level select trigger
     ld    a, (LevelSelectTrg)
     cp    $0D
-    jr    z, + ;temp
+    jr    nz, +
     xor   a
     ld    ($D294), a
     call  LevelSelectMenu     ;run the level select
